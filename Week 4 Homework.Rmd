@@ -1,0 +1,131 @@
+---
+title: "DATA 712 Week 4 Homework"
+output: html_document
+date: "2025-03-08"
+---
+
+# Homework 4: Logit Models
+
+```{r}
+rm(list = ls())
+gc()
+
+# Set working directory
+directory <- "C:/Users/mikem/iCloudDrive/Spring 2025/DATA 712/Data sets"
+setwd(directory)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Load Data set
+shootings <- read.csv("NYPD_Shooting_Data.csv", stringsAsFactors = FALSE)
+```
+
+For this assignment, you will use the NYPD_Shooting_Data.csv data set. This data set contains information on shootings in New York City from 2006 to 2023. The reason I chose this data set opposed to the NYC Disadvantaged Neighborhood Data Set that I had submitted for the previous assignment is that this data contains more binary variables, thus making it ideal to work with for the this assignment. This is the other major data set that I used for my ESS presentation, which will eventually be turned into my graduate thesis.
+
+This data set was provided by the NYPD and is available on the NYC Open Data website.The link to the data set, along with other information pertaining to the data set, can be found [here](https://data.cityofnewyork.us/Public-Safety/NYPD-Shooting-Incident-Data-Historic-/833y-fsy8).
+
+Of the 21 variables within this data set, 3 are binary variables. The variables are:
+
+- STATISTICAL_MURDER_FLAG 
+Shooting resulted in the victim’s death which would be counted as a murder
+    - TRUE
+    - FALSE
+    
+- PERP_SEX
+Perpetrator’s sex description
+    - MALE
+    - FEMALE
+
+- VIV_SEX
+Victim’s sex description
+    - MALE
+    - FEMALE
+
+
+## Likelhood Ration Test
+
+I had to install the below package due to my GitHub Co Pilot not working correctly. I am currently troubleshooting it and should have it working by the time the next assignment is due.
+```{r}
+install.packages("remotes", repos = "https://cran.rstudio.com/")  # If not installed
+remotes::install_github("IQSS/Zelig")
+
+```
+
+```{r}
+install.packages("radiant.data", dependencies = TRUE, repos = "https://cran.rstudio.com/")
+library(radiant.data)
+head(shootings)
+
+```
+
+# Outcome Variable Table looking at Murder Flag based on Sex, Age and Race
+```{r}
+library(texreg)
+library(lmtest)
+library(dplyr)
+
+# Convert necessary variables to factors
+shootings <- shootings %>%
+  mutate(
+    STATISTICAL_MURDER_FLAG = as.factor(STATISTICAL_MURDER_FLAG),
+    VIC_SEX = as.factor(VIC_SEX),
+    VIC_AGE_GROUP = as.factor(VIC_AGE_GROUP),
+    VIC_RACE = as.factor(VIC_RACE)
+  )
+
+# Model 1: Null model (Intercept only)
+m0 <- glm(STATISTICAL_MURDER_FLAG ~ 1, data = shootings, family = binomial)
+
+# Model 2: Adding VIC_SEX
+m1 <- glm(STATISTICAL_MURDER_FLAG ~ VIC_SEX, data = shootings, family = binomial)
+
+# Model 3: Adding VIC_AGE_GROUP
+m2 <- glm(STATISTICAL_MURDER_FLAG ~ VIC_SEX + VIC_AGE_GROUP, data = shootings, family = binomial)
+
+# Model 4: Adding VIC_RACE
+m3 <- glm(STATISTICAL_MURDER_FLAG ~ VIC_SEX + VIC_AGE_GROUP + VIC_RACE, data = shootings, family = binomial)
+
+# Conduct Likelihood Ratio Tests (Comparing nested models)
+lrt_m1 <- lrtest(m1, m0)  # VIC_SEX vs Null
+lrt_m2 <- lrtest(m2, m1)  # Adding VIC_AGE_GROUP
+lrt_m3 <- lrtest(m3, m2)  # Adding VIC_RACE
+
+# Print LRT results
+print(lrt_m1)
+print(lrt_m2)
+print(lrt_m3)
+
+# Compute AIC and BIC for all models (fixing the print issue)
+aic_values <- c(AIC(m0), AIC(m1), AIC(m2), AIC(m3))
+bic_values <- c(BIC(m0), BIC(m1), BIC(m2), BIC(m3))
+
+# Print AIC and BIC values properly
+cat("AIC Values:\n", paste(aic_values, collapse = ", "), "\n")
+cat("BIC Values:\n", paste(bic_values, collapse = ", "), "\n")
+
+# Generate a well-organized HTML table for the models
+htmlreg(list(m0, m1, m2, m3), 
+        doctype = FALSE,            # Removes unnecessary HTML tags
+        caption = "Progressive Logistic Regression Models",
+        custom.model.names = c("Null Model", "Model 1", 
+                               "Model 2", 
+                               "Model 3"),
+        file = "regression_comparison.html")  # Saves the table to an HTML file
+
+# Open the results in a web browser
+browseURL("regression_comparison.html")
+
+```
+ 
+The table presents the results of a logistic regression analysis examining factors associated with whether a shooting resulted in a murder. Model 1 includes victim sex, but the coefficients for male and Female (labeled as VIC_SEXU) sex are not statistically significant, suggesting that victim sex alone does not strongly predict the outcome. Model 2 adds victim age group, showing that older victims, particularly those aged 65 and above, have a significantly higher likelihood of the shooting resulting in a murder, while younger victims (18-24, 25-44, and 45-64) also show increased risk compared to the reference group. Model 3 introduces victim race, but the coefficients for racial groups do not appear statistically significant, potentially due to high standard errors. Across models, the Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC) values decrease, indicating improved model fit with additional predictors. The likelihood ratio tests between models suggest that age group contributes significantly to predicting the outcome, whereas victim sex and race do not appear to have strong independent effects.
+
+
+# Lilkelhood Ratio Test Results
+```{r}
+# Perform likelihood ratio test (LRT) using anova()
+anova(m0, m1, test = "Chisq")  # Compare Model 1 (VIC_SEX) to Null Model
+anova(m1, m2, test = "Chisq")  # Compare Model 2 (+VIC_AGE_GROUP) to Model 1
+anova(m2, m3, test = "Chisq")  # Compare Model 3 (+VIC_RACE) to Model 2
+```
+Looking at the results of the likelihood ratio tests, we can see that the p-values for all the tests are less than 0.05, which indicates that the models are statistically significant. This means that the models are better than the null model. The best choice of model is the one with the lowest AIC and BIC values. In this case, Model 3 has the lowest AIC and BIC values, which means that it is the best model among the four models. This model includes the variables VIC_SEX, VIC_AGE and VIC_RACE when predicting the STATISTICAL_MURDER_FLAG.

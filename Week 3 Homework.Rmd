@@ -1,0 +1,146 @@
+---
+title: "Data 712 Homework 3"
+author: "Michael Morello"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+# Data 712 Homework 3
+
+For this course, I would like to continue my analysis on the 2023 New York City Disadvantaged Neighborhoods data set. This data set contains information on the neighborhoods in New York City that are considered disadvantaged. This data was collected by the New York's Climate Justice Working Group (NYCJWG).This data set is public use and can be found at the following link: https://data.ny.gov/Energy-Environment/Final-Disadvantaged-Communities-DAC-2023/2e6c-s6fp/about_data
+
+```{r}
+
+rm(list = ls())
+gc()
+
+# Set working directory
+directory <- "C:/Users/mikem/iCloudDrive/Spring 2025/DATA 712/Data sets"
+setwd(directory)
+
+# Set seed for reproducibility
+set.seed(123)
+
+neighborhoods <- read.csv("2023_NY_Disadvantaged Neighborhoods.csv", stringsAsFactors = FALSE)
+```
+
+
+There are several questions I would like to answer by analyzing this data set. These questions pertain to a greater analysis I am working on that examines the correlation between disadvantaged neighborhoods and gun violence in NY City. I would like to examine the several variable with the 2023 New York City Disadvantaged Neighborhoods data set that I believe will help me get a deeper understanding on what factors contribute to the high rates of gun violence in these neighborhoods. These variables are:
+
+- Vulnerability_Score_Percentile
+      Combined percentile ranking for the cumulative score of all indicators within the “Population Characteristics and Health Vulnerabilities”
+      
+- Housing_Vacancy_Rate
+      Percentile ranking of the vacant housing units as percent of total housing units. Blank cells represent data that were not required or are not currently available.
+      
+- Redlining_Updated
+      Percentile ranking of the historic (1930) redlining 'score' from 1-4 where 4 is most hazardous and most likely to be a redlined area. Blank cells represent data that were not required or are not currently available.
+
+- Household_Single_Parent
+      Percentile ranking of the percentage of census tract households with a single parent and children under age 18. Blank cells represent data that were not required or are not currently available.
+
+- Unemployment_Rate
+      Percentile ranking of the unemployment rate. Blank cells represent data that were not required or are not currently available.
+
+
+I am pretty familiar with the data set I have from the NYPD that pertains to gun violence, but the 2023 New York City Disadvantaged Neighborhoods data set is new to me. I would like to work with this data set throught the course of this class to become better versed with its variables and how they can be used to help me answer my research question.
+
+
+# Pivoting Data Exercise
+
+I will now pivot the data to convert it from long to wide format. I will then convert it back to long format to ensure that the data was pivoted correctly. 
+```{r}
+# Load necessary libraries
+library(tidyverse)
+
+
+# Check column names to ensure correct selection
+colnames(neighborhoods)
+
+# Select relevant columns
+neighborhoods_selected <- neighborhoods %>%
+  select(GEOID, Percentile_Rank_Combined_NYC, Unemployment_Rate)
+
+# Convert from LONG to WIDE format
+wide_neighborhoods <- neighborhoods_selected %>%
+  pivot_wider(names_from = GEOID, values_from = c(Percentile_Rank_Combined_NYC, Unemployment_Rate))
+
+# Print wide format data
+print("Wide Format Data:")
+print(wide_neighborhoods, digits = 10)
+
+# Convert back from WIDE to LONG format (Fixing pivot_longer issue)
+long_neighborhoods <- neighborhoods_selected %>%
+  pivot_longer(cols = c(Percentile_Rank_Combined_NYC, Unemployment_Rate), 
+               names_to = "Variable", 
+               values_to = "Value")
+
+# Print converted long format data
+print("Converted Back to Long Format Data:")
+print(long_neighborhoods, digits = 10)
+
+```
+
+As seen above, the data was successfully pivoted from long to wide format and then back to long format. The data was pivoted correctly and the data was not lost in the process. The process of doing this started with selecting the relevant columns from the data set. I then used the pivot_wider function to convert the data from long to wide format. I then used the pivot_longer function to convert the data back to long format. I decided to choose the Percentile_Rank_Combined_NYC and Unemployment_Rate columns to pivot the data because I believe these two variables will be important in my analysis of the data set. I will be using these variables to help me answer my research question. I also used the print() function to print the data in both wide and long format to ensure that the data was pivoted correctly.
+
+
+# Part 3
+
+I will now use the glimpse() function to get a better understanding of the data set. This function will provide me with a summary of the data set, including the number of observations and variables, the data types of the variables, and the first few observations of the data set. This will help me get a better understanding of the data set and the variables that are included in it.
+```{r}
+dplyr::glimpse(neighborhoods)
+```
+
+
+```{r}
+library(maxLik)
+
+# Define the log-likelihood function for OLS
+ols.lf <- function(param) {
+  beta <- param[-1]  # Extract beta coefficients
+  sigma <- param[1]   # Extract standard deviation (sigma)
+  
+  y <- as.vector(neighborhoods$Age_Over_65)  # Dependent variable
+  x <- cbind(1, as.vector(neighborhoods$Unemployment_Rate))  # Independent variable with intercept
+  
+  mu <- x %*% beta  # Compute predicted values
+  
+  # Compute log-likelihood
+  log_likelihood <- sum(dnorm(y, mean = mu, sd = sigma, log = TRUE))
+  
+  return(log_likelihood)
+}
+
+# Perform Maximum Likelihood Estimation (MLE)
+mle_ols <- maxLik(logLik = ols.lf, start = c(sigma = 1, beta1 = 1, beta2 = 1))
+
+# Display the results
+summary(mle_ols)
+
+# Compare with standard OLS using lm()
+summary(lm(Percentile_Rank_Combined_NYC ~ Unemployment_Rate, data = neighborhoods))
+
+```
+
+## Analysis of the MLE Results
+
+Intercept (0.045056, p < 0.001)
+If a neighborhood had 0% unemployment, the predicted percentile rank for seniors 65+ would be 4.5%. While this is meaningful mathematically, it is unlikely in real-world scenarios where unemployment is never exactly 0.
+
+Unemployment Rate Coefficient (0.349925, p < 0.001)
+For every 1% increase in the unemployment rate, the predicted percentile rank for seniors 65+ increases by 0.35%. This suggests that higher unemployment rates are associated with higher percentile ranks for seniors 65+. This suggests that there is a positive relationship between the unemployment rate and the percentile rank for seniors 65+.
+
+R-Squared: 0.1051
+The R-squared value of 0.1051 indicates that the model explains 10.51% of the variance in the percentile rank for seniors 65+. This suggests that the model is not a good fit for the data, as it only explains a small portion of the variance in the dependent variable. This suggests that there are other variables that are not included in the model that may be influencing the percentile rank for seniors 65+.
+
+F-statistic: 561.1 (p < 2.2e-16)
+The F-statistic of 561.1 with a p-value less than 2.2e-16 indicates that the model is statistically significant. This suggests that the model is a good fit for the data and that the independent variable (unemployment rate) is a significant predictor of the dependent variable (percentile rank for seniors 65+).
+
+
+## Conclusion
+- There is a positive association between neighborhood unemployment rate and the proportion of seniors (65+).
+- Unemployment rate alone does not fully explain senior distribution—other factors (housing costs, healthcare, amenities) should be explored.
+- The model explains only 10.51% of the variance in the dependent variable, suggesting that other variables are needed to improve the model's predictive power.

@@ -1,0 +1,197 @@
+---
+title: "DATA 712 Homework 2"
+output: html_document
+date: "2025-02-20"
+---
+
+
+```{r,include=FALSE}
+library(readr)
+d_csv <- read_csv("/Users/Morello/Library/Mobile Documents/com~apple~CloudDocs/Spring 2025/DATA 712/Data sets/titanic_data.csv", col_names = TRUE)
+head(d_csv)
+library(tidyverse)
+```
+
+# Titanic Data Analysis
+
+**Analysis of Average Fair Price Compared to Sex and Ticket Class.**
+
+Based on the data in the table below, the average fare for female passengers is $23.82 higher than that of male passengers. While the exact reason for this difference is unclear, one possible explanation is the distribution of passengers by sex across ticket classes.
+
+Examining the second table, we see a high concentration of male passengers in third class, the lowest ticket category. This may skew the average fare for male passengers downward. The third table further supports this, showing that third-class fares are significantly lower than those of first and second class. Given this large price disparity and the high proportion of men in third class, it is likely a key factor contributing to the lower average fare for male passengers compared to female passengers.
+```{r, echo=FALSE}
+#Average fare by Sex
+d_csv %>%
+  group_by(Sex) %>%
+  summarise(Average_Fare = mean(Fare, na.rm = TRUE))
+
+#Table of Sex by Ticket Class
+sex_pclass_table <- d_csv %>%
+  count(Sex, Pclass) %>%  # Count occurrences of each Sex-Pclass combination
+  pivot_wider(names_from = Pclass, values_from = n, values_fill = 0)  # Reshape into table format
+
+print(sex_pclass_table)
+
+#Average fare by Pclass
+d_csv %>%
+  group_by(Pclass) %>%
+  summarise(Average_Fare = mean(Fare, na.rm = TRUE))
+
+```
+
+
+**Analysis of Survival Rate in Comparison to Sex and Ticket Class**
+
+Based on the data in the tables and pie charts below, the survival rate for female passengers is significantly higher than that of male passengers. Specifically, 74% of female passengers survived, compared to only 19% of male passengers. This stark contrast suggests that sex played a crucial role in survival outcomes, likely influenced by the "women and children first" protocol followed during the Titanic disaster.
+
+Looking at the second table and the accompanying pie charts, survival rates also vary considerably by ticket class. First-class passengers had the highest survival rate at 63%, followed by second-class passengers at 47.3%, and third-class passengers at just 24.2%. The pie charts visually reinforce this trend, showing a greater proportion of survivors in first class, while third class has a much higher percentage of fatalities at 75.8%. This pattern suggests that passenger class had a significant impact on survival chances, possibly due to better access to lifeboats and priority given to wealthier passengers.
+
+The data from both the tables and pie charts indicate that women and higher-class passengers had a clear survival advantage, while men and lower-class passengers faced much lower survival rates. This aligns with historical accounts of the Titanic tragedy, where social and gender hierarchies influenced who was given priority during the evacuation.
+```{r, echo=FALSE}
+#Survival rate by Sex
+d_csv %>%
+  group_by(Sex) %>%
+  summarise(Survival_Rate = round(mean(Survived, na.rm = TRUE), 2))
+
+#Survival rate by Pclass
+d_csv %>%
+  group_by(Pclass) %>%
+  summarise(Survival_Rate = round(mean(Survived, na.rm = TRUE), 2))
+
+
+# Prepare data for pie charts: count survival per Pclass and normalize within each class
+pie_data <- d_csv %>%
+  group_by(Pclass, Survived) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  group_by(Pclass) %>%
+  mutate(Percentage = Count / sum(Count) * 100, 
+         Label = paste0(round(Percentage, 1), "%"))  # Create label with rounded percentages
+
+# Create proper pie charts for each passenger class
+ggplot(pie_data, aes(x = "", y = Percentage, fill = factor(Survived))) +
+  geom_bar(stat = "identity", width = 1, color = "white") +  # White border for better separation
+  coord_polar(theta = "y") +  # Convert to pie chart
+  facet_wrap(~Pclass) +  # Create separate pie charts for each Pclass
+  geom_text(aes(label = Label), 
+            position = position_stack(vjust = 0.5), size = 5, color = "white") +  # Add percentage labels
+  scale_fill_manual(values = c("red", "blue"), labels = c("Died", "Survived")) + 
+  labs(title = "Survival Distribution by Passenger Class",
+       fill = "Survival Status") +
+  theme_void() +  # Remove background and axes for a clean pie chart
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  # Centered title
+    legend.position = "bottom", 
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 12)
+  )
+
+```
+
+# Analysis of "USArrests" Data Set (1973)
+
+The USArrests data set provides a state-by-state breakdown of violent crime rates across the United States in 1973. It includes four key variables: Murder, Assault, Rape, and UrbanPop, which represents the percentage of a state’s population living in urban areas. This data set offers a snapshot of crime patterns during that time, allowing for comparisons between states and insights into how crime rates relate to urbanization.
+
+While USArrests provides valuable information, it does not account for factors such as socioeconomic conditions or law enforcement policies that may have influenced crime rates. However, by analyzing this data set, we can identify patterns in violent crime across different regions and explore possible relationships between urbanization and crime levels.
+
+**Nationwide Averages**
+
+The average violent crime rates in the United States in 1973 reveal notable differences between different types of offenses. The murder rate averaged 7.79 per 100,000 people, while the assault rate was significantly higher at 170.76 per 100,000 people. The rape rate fell in between, averaging 21.23 per 100,000 people.  
+
+These figures suggest that assault was by far the most common violent crime, occurring at a much higher frequency than both murder and rape. The lower average murder rate indicates that while homicides did occur, they were much less frequent compared to other forms of violent crime. The rape rate, while lower than assault, still represents a serious concern in terms of public safety.  
+
+By analyzing these averages, we gain a clearer understanding of crime patterns in 1973, highlighting the prevalence of violent crime across different categories and reinforcing the need to explore factors that may have influenced these rates at the time.
+```{r,echo=FALSE}
+
+data("USArrests")
+
+USArrests <- USArrests %>%
+  rownames_to_column(var = "State")
+
+#Average rates for Murder, Assault, and Rape across all states
+avg_rates <- USArrests %>%
+  summarise(
+    Avg_Murder = round(mean(Murder), 2),
+    Avg_Assault = round(mean(Assault), 2),
+    Avg_Rape = round(mean(Rape), 2)
+  )
+
+print(avg_rates)
+```
+
+**Regional Differences in Violent Crime Patterns**
+
+The crime rate data across U.S. states in 1973 shows clear regional differences in violent crime patterns.
+
+For murder rates, southern states tend to rank among the highest, suggesting that factors such as regional crime trends or socioeconomic conditions may have contributed to higher instances of homicide. On the other hand, states in the northern and midwestern regions consistently report the lowest murder rates, indicating a stark contrast in violent crime prevalence between different parts of the country.
+
+Assault rates follow a similar pattern, with certain states in the South and the West leading in reported incidents. States with the lowest assault rates are largely concentrated in the Northeast and Midwest, reinforcing the idea that urbanization levels, economic disparities, and social conditions may have played a role in influencing crime rates during this time.
+
+When looking at rape rates, the ranking shifts slightly. Western states, in particular, stand out with the highest reported rates, while states in the Northeast and upper Midwest report the lowest. This variation suggests that different factors, such as cultural differences in crime reporting, may have influenced how these crimes were documented.
+
+Overall, the data highlights significant disparities in violent crime across the United States, with some regions experiencing much higher crime rates than others. These patterns emphasize the importance of considering historical, economic, and social factors when analyzing crime trends.
+```{r, echo=FALSE}
+data("USArrests")
+
+# Convert row names (state names) into a column for easier reference
+USArrests <- USArrests %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "State")  # Ensure states are included
+
+# Convert data to long format
+USArrests_long <- USArrests %>%
+  pivot_longer(cols = c(Murder, Assault, Rape), names_to = "Crime", values_to = "Rate")
+
+# Ensure the "State" column is properly referenced in the plot
+ggplot(USArrests_long %>% filter(Crime == "Rape"), 
+       aes(x = reorder(State, Rate), y = Rate, fill = Crime)) +
+  geom_bar(stat = "identity", fill = "lightblue",show.legend = FALSE) +
+  coord_flip() +
+  labs(title = "Rape Rates Across U.S. States (1973)",
+       x = "State", y = "Rate per 100,000") +
+  theme_minimal()
+
+# Plot Assault rates across U.S. states
+ggplot(USArrests_long %>% filter(Crime == "Assault"), 
+       aes(x = reorder(State, Rate), y = Rate, fill = Crime)) +
+  geom_bar(stat = "identity", fill = "green", show.legend = FALSE) +
+  coord_flip() +
+  labs(title = "Assault Rates Across U.S. States (1973)",
+       x = "State", y = "Rate per 100,000") +
+  theme_minimal()
+
+ggplot(USArrests_long %>% filter(Crime == "Murder"), 
+       aes(x = reorder(State, Rate), y = Rate)) +
+  geom_bar(stat = "identity", fill = "red", show.legend = FALSE) +  # Set fill color to green
+  coord_flip() +
+  labs(title = "Murder Rates Across U.S. States (1973)",
+       x = "State", y = "Rate per 100,000") +
+  theme_minimal()
+```
+
+
+**States With the Highest Crime Rates and Lowest Crime Rates**
+
+The data highlights a stark contrast between states with the highest and lowest violent crime rates in the United States in 1973.
+
+The states with the highest crime rates are concentrated in the South and parts of the West, with Georgia, Mississippi, and Florida ranking at the top. These states report high rates of murder, assault, and rape, indicating a widespread prevalence of violent crime. Many of these states have large urban centers and historical economic disparities, which may have contributed to higher crime levels. Nevada stands out with an exceptionally high rape rate compared to the other top-ranking states, suggesting unique factors influencing crime in that region.
+
+In contrast, the states with the lowest crime rates are primarily in the Northeast and Midwest. North Dakota, Maine, and New Hampshire report the lowest violent crime rates across all categories. These states have consistently low murder, assault, and rape rates, suggesting lower levels of violent crime relative to the rest of the country. Many of these states have smaller populations and lower levels of urbanization, which could contribute to fewer violent crime incidents.
+
+Overall, the data underscores significant regional differences in violent crime during this period. While some states experienced high crime rates across all categories, others maintained relatively low levels of violent crime, reflecting broader social, economic, and demographic factors at play.
+```{r, echo=FALSE}
+#Table of Top 10 States with Highest Crime Rates
+top_10_highest <- USArrests %>%
+  arrange(desc(Murder)) %>%
+  select(State, Murder, Assault, Rape) %>%
+  head(10)
+
+print("Top 10 States with Highest Crime Rates")
+print(top_10_highest)
+
+#Table of Top 10 States with Lowest Crime Rates
+top_10_lowest <- USArrests %>%
+  arrange(Murder) %>%
+  select(State, Murder, Assault, Rape) %>%
+  head(10)
+print(top_10_lowest)
+```
